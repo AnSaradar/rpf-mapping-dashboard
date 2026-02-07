@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { getCitiesList, getData } from '../apis/baseUrl';
+import { aspectColors } from './aspectColors';
+import CityBarChart from './chart';
 
 interface SidebarProps {
   className?: string;
@@ -22,9 +25,7 @@ interface EquipmentData {
   level: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
-  const [activeSection, setActiveSection] = useState<string>('medical');
-  
+const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {  
   const generalStats: StatData[] = [
     { label: 'Population', value: '8,143' },
     { label: 'Area', value: '10', unit: 'km²' },
@@ -56,151 +57,184 @@ const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
     { type: 'Ventilators', count: 25, level: 40 },
   ];
 
-  // Simulated chart data
-  const chartData = [
-    { color: 'bg-red-500', height: '60%' },
-    { color: 'bg-orange-500', height: '80%' },
-    { color: 'bg-yellow-500', height: '40%' },
-    { color: 'bg-green-500', height: '90%' },
-    { color: 'bg-blue-500', height: '70%' },
-    { color: 'bg-indigo-500', height: '50%' },
-    { color: 'bg-purple-500', height: '65%' },
-  ];
 
-  return (
-    <div className={`bg-[#262626] border-l border-gray-800 w-72 overflow-y-auto ${className}`}>
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Evaluation: <span className="text-cyan-400">Masadir Bersch</span></h2>
-          <button className="text-gray-400 hover:text-white">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
-          </button>
-        </div>
+const [activeAspect, setActiveAspect] = useState("All");
+const [showCities, setShowCities] = useState(false);
+const [cities, setCities] = useState<string[]>([]);
+const [selectedCity, setSelectedCity] = useState<string | null>(null);
+const [cityScores, setCityScores] = useState<any[]>([]);
 
-        {/* Chart visualization */}
-        <div className="mb-6">
-          <div className="flex items-end h-32 space-x-1">
-            {chartData.map((bar, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div className={`w-full ${bar.color}`} style={{ height: bar.height }}></div>
+
+
+const handleDropdownClick = async () => {
+  setShowCities(prev => !prev); 
+
+  if (cities.length === 0) { 
+    try {
+      const response = await getCitiesList(); 
+      setCities(response.data.cities);         
+    } catch (error) {
+      console.error("Failed to fetch cities", error);
+    }
+  }
+};
+
+const handleCitySelect = async (city: string) => {
+  setSelectedCity(city);
+
+  try {
+    const stats = await getCityStats(city);
+    setCityScores(stats.data.scores);
+    console.log("city scores:", stats.data.scores)
+    console.log("City stats:", stats);
+  } catch (err) {
+    console.error(err);
+  }
+  setShowCities(false)
+};
+
+const getCityStats = async (city: string) => {
+  const result = await getData(`/stats?city=${city}`);
+
+  if (result.success) {
+    return result.data;
+  } else {
+        console.log("error fetching stats:", result.data.error)
+    throw new Error(result.error || "Failed to fetch city stats");
+  }
+};
+
+ return (
+  <div className={`bg-[#242730] border-l border-gray-800 w-[22rem] h-screen overflow-y-auto flex-shrink-0 ${className}`}>
+
+    {/* Nav bar */}
+
+<div className="grid grid-cols-5 gap-y-4 py-4 px-4 text-center">
+
+  {Object.keys(aspectColors).map((label, idx) => (    // ← get aspects from the color file
+    <button
+      key={idx}
+      onClick={() => setActiveAspect(label)}           
+      className="flex flex-col items-center hover:text-white transition-colors"
+    >
+
+      <span
+        className={`${
+          activeAspect === label
+            ? "font-semibold text-white"
+            : "text-gray-400"
+        } text-[11px] leading-tight h-[28px] flex items-center justify-center transition-colors`}
+      >
+        {label}                                        
+      </span>
+
+      <div
+        className={`w-full h-[3px] mt-1 rounded-full transition-transform duration-200 ${
+          activeAspect === label ? "scale-105" : "scale-100"
+        }`}
+        style={{
+          backgroundColor: aspectColors[label]         
+        }}
+      />
+    </button>
+  ))}
+
+</div>
+
+
+    <div className="p-4 space-y-6">
+
+      {/* Top Header */}
+      <div className="flex items-center justify-between relative">
+        <h2 className="text-lg font-semibold text-white">
+          Evaluation: <span className="text-[#20BBD6]">{selectedCity || "Select City"}</span>
+        </h2>
+
+        <button className="text-gray-400 hover:text-white" onClick={handleDropdownClick}>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showCities && (
+          <div className={`
+            absolute right-0 top-8 w-40 bg-[#29323C] border border-gray-700 rounded-lg shadow-lg z-50
+            transform transition-all duration-200 origin-top
+            opacity-100 scale-100
+          `}>
+            {cities.map((city, index) => (
+              <div
+                key={index}
+                className="text-white py-1.5 px-3 hover:bg-gray-700 cursor-pointer"
+                onClick={() => handleCitySelect(city)}
+              >
+                {city}
               </div>
             ))}
           </div>
-        </div>
-
-        {/* General stats */}
-        {generalStats.map((stat, index) => (
-          <div key={index} className="mb-4">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">{stat.label}:</span>
-              <span className="text-white font-medium">
-                {stat.value}{stat.unit && <span className="text-gray-400 ml-1">{stat.unit}</span>}
-              </span>
-            </div>
-          </div>
-        ))}
-
-        {/* Building stats - shown when not in medical view */}
-        {activeSection !== 'medical' && buildingStats.map((stat, index) => (
-          <div key={index} className="mb-4">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">{stat.label}:</span>
-              <span className="text-white font-medium">
-                {stat.value}{stat.unit && <span className="text-gray-400 ml-1">{stat.unit}</span>}
-              </span>
-            </div>
-          </div>
-        ))}
-
-        {/* Medical Buildings Section */}
-        {activeSection === 'medical' && (
-          <>
-            {/* Medical stats */}
-            {medicalBuildingStats.map((stat, index) => (
-              <div key={index} className="mb-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">{stat.label}:</span>
-                  <span className="text-white font-medium">
-                    {stat.value}{stat.unit && <span className="text-gray-400 ml-1">{stat.unit}</span>}
-                  </span>
-                </div>
-              </div>
-            ))}
-
-            {/* Medical Buildings Dropdown */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-white font-medium">Medical Buildings</span>
-                <button className="text-gray-400 hover:text-white">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-              <div className="pl-4 border-l border-gray-700">
-                <div className="mb-2">
-                  <span className="text-gray-400">Total Medical Buildings: 5</span>
-                </div>
-                {medicalBuildings.map((building, index) => (
-                  <div key={index} className="mb-2 flex items-center">
-                    <span className="text-gray-400 mr-2">•</span>
-                    <div className="flex justify-between w-full">
-                      <span className="text-gray-400">{building.type}:</span>
-                      <span className="text-white">
-                        <span className="text-cyan-400">Type {building.count}</span>, Need {building.level}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Equipment Section */}
-            <div className="mb-4">
-              <div className="text-white font-medium mb-2">Equipment</div>
-              <div className="pl-4 border-l border-gray-700">
-                {equipmentItems.map((item, index) => (
-                  <div key={index} className="mb-2 flex items-center">
-                    <span className="text-gray-400 mr-2">•</span>
-                    <div className="flex justify-between w-full">
-                      <span className="text-gray-400">{item.type}:</span>
-                      <span className="text-white">
-                        <span className="text-cyan-400">Type {item.count}</span>, Need {item.level}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
         )}
+      </div>
 
-        {/* Toggle buttons for different views */}
-        <div className="flex space-x-2 mt-6">
-          <button 
-            className={`px-3 py-1 rounded text-sm ${activeSection === 'medical' ? 'bg-cyan-600 text-white' : 'bg-gray-800 text-gray-400'}`}
-            onClick={() => setActiveSection('medical')}
-          >
-            Medical
-          </button>
-          <button 
-            className={`px-3 py-1 rounded text-sm ${activeSection === 'residential' ? 'bg-cyan-600 text-white' : 'bg-gray-800 text-gray-400'}`}
-            onClick={() => setActiveSection('residential')}
-          >
-            Residential
-          </button>
-          <button 
-            className={`px-3 py-1 rounded text-sm ${activeSection === 'commercial' ? 'bg-cyan-600 text-white' : 'bg-gray-800 text-gray-400'}`}
-            onClick={() => setActiveSection('commercial')}
-          >
-            Commercial
-          </button>
+      {/* Stats */}
+    <CityBarChart scores={cityScores} activeAspect={activeAspect} />
+
+      <div className="space-y-4">
+
+<div className="flex items-center justify-between text-sm text-gray-300">
+        <div className="flex gap-3 text-sm text-gray-300">
+          <span className="font-medium text-white">Sub-Aspect: </span>
+           ALL  </div>
+           <button className="transition-colors duration-200">
+    <svg
+      className="w-4 h-4 text-gray-400 hover:text-[#20BBD6] transition-colors"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+      />
+    </svg>
+  </button>
+</div>
+
+        <div className="flex gap-3 text-sm text-gray-300">
+          <span className="font-medium text-white">Population: </span>
+          {generalStats[0].value}
+        </div>
+
+        <div className="flex gap-3 text-sm text-gray-300">
+          <span className="font-medium text-white">Area: </span>
+          {generalStats[1].value} {generalStats[1].unit}
+        </div>
+
+        <div className="flex gap-3 text-sm text-gray-300">
+          <span className="font-medium text-white">Total Buildings:</span>
+          {buildingStats[0].value}
+        </div>
+
+        <div className="flex gap-3 text-sm text-gray-300">
+          <span className="font-medium text-white">Residential Area:</span>
+          {buildingStats[1].value} {buildingStats[1].unit}
+        </div>
+
+        <div className="flex gap-3 text-sm text-gray-300">
+          <span className="font-medium text-white">Available Area:</span>
+          {buildingStats[2].value} {buildingStats[2].unit}
         </div>
       </div>
     </div>
-  );
+  </div>
+);
+
 };
 
 export default Sidebar;

@@ -36,13 +36,28 @@ export const postData = async (endpoint: string, body: Record<string, any>) => {
 };
 
 export const getCurrentUser = async () => {
-  const result = await getData('/auth/me');
+  const result = await getData('/auth/me', {headers:{
+    Authorization: token? `Bearer ${token}`: undefined
+  }});
 
   if (result.success) {
     localStorage.setItem("userId", result.data.data.id)
     return result.data;
   } else {
     throw new Error(result.error || 'Failed to fetch current user');
+  }
+};
+
+export const getCitiesList= async () => {
+  const result = await getData('/stats/cities', {headers:{
+    Authorization: token? `Bearer ${token}`: undefined
+  }});
+
+  if (result.success) {
+    console.log("cities fetched: ", result.data)
+    return result.data;
+  } else {
+    throw new Error(result.error || 'Failed to fetch cities list');
   }
 };
 

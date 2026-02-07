@@ -3,9 +3,9 @@ import KeplerGl from '@kepler.gl/components';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import Chatbot from '../chatbot/Chatbot';
+import Sidebar from '../sidebar/Sidebar';
 
-// Free Mapbox token for testing purposes
-// Replace with your own token for production use
+
 const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
 const SYRIA_CONFIG = {
   version: 'v1',
@@ -235,9 +235,13 @@ const MapVisualization: React.FC<MapVisualizationProps> = ({ className = '' }) =
           </div>
         ))}
       </div>
-      <div className="absolute bottom-0 right-16 z-[9999] pointer-events-auto">
-        <Chatbot />
-      </div>
+ <div className="absolute top-0 right-[23px] h-full w-80 z-[9999] pointer-events-auto">
+    <Sidebar />
+  </div>
+
+<div className="fixed bottom-4 right-[27rem] z-[10000] pointer-events-auto">
+    <Chatbot />
+  </div>
     </div>
   );
 };
