@@ -13,7 +13,12 @@ const rootReducer = combineReducers({
       bearing: 0,
       dragRotate: true
     },
-    // you can also preset uiState, filters, etc.
+    uiState: {
+      // Prevent the "Add Data To Map" modal from auto-opening
+      activeSidePanel: null,
+      currentModal: null,
+      readOnly: false
+    }
   })
 });
 

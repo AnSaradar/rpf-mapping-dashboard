@@ -1,16 +1,21 @@
 import axios from "axios";
 
-const token = localStorage.getItem('token');
-
 const api = axios.create({
-  baseURL: "https://rpf-ai-assistant-506261777635.herokuapp.com"
+  baseURL: "https://rpf-ai-assistant-506261777635.herokuapp.com",
 });
+
+// Helper to always read the latest token from localStorage
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export const getData = async (endpoint: string, params?: Record<string, any>) => {
   try {
     const response = await api.get(endpoint, {
-      params, headers: {
-        Authorization: token ? `Bearer ${token}` : undefined,
+      params,
+      headers: {
+        ...getAuthHeaders(),
       },
     });
     return { success: true, data: response.data };
@@ -23,7 +28,7 @@ export const postData = async (endpoint: string, body: Record<string, any>) => {
   try {
     const response = await api.post(endpoint, body, {
       headers: {
-        Authorization: token ? `Bearer ${token}` : undefined,
+        ...getAuthHeaders(),
       },
     });
     return { success: true, data: response.data.data };
@@ -36,28 +41,35 @@ export const postData = async (endpoint: string, body: Record<string, any>) => {
 };
 
 export const getCurrentUser = async () => {
-  const result = await getData('/auth/me', {headers:{
-    Authorization: token? `Bearer ${token}`: undefined
-  }});
+  const result = await getData("/auth/me");
 
   if (result.success) {
-    localStorage.setItem("userId", result.data.data.id)
+    localStorage.setItem("userId", result.data.data.id);
     return result.data;
   } else {
-    throw new Error(result.error || 'Failed to fetch current user');
+    throw new Error(result.error || "Failed to fetch current user");
   }
 };
 
-export const getCitiesList= async () => {
-  const result = await getData('/stats/cities', {headers:{
-    Authorization: token? `Bearer ${token}`: undefined
-  }});
+export const getCitiesList = async () => {
+  const result = await getData("/stats/cities");
 
   if (result.success) {
-    console.log("cities fetched: ", result.data)
+    console.log("cities fetched: ", result.data);
     return result.data;
   } else {
-    throw new Error(result.error || 'Failed to fetch cities list');
+    throw new Error(result.error || "Failed to fetch cities list");
+  }
+};
+
+// Fetch a single city's location (lat/lon) for map focusing
+export const getCityLocation = async (city: string) => {
+  const result = await getData(`/stats/location?city=${encodeURIComponent(city)}`);
+
+  if (result.success) {
+    return result.data;
+  } else {
+    throw new Error(result.error || "Failed to fetch city location");
   }
 };
 

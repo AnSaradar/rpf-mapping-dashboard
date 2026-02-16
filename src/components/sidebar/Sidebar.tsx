@@ -5,6 +5,8 @@ import CityBarChart from './chart';
 
 interface SidebarProps {
   className?: string;
+  onCitySelectedForMap?: (city: string) => void;
+  onClose?: () => void;
 }
 
 interface StatData {
@@ -25,7 +27,7 @@ interface EquipmentData {
   level: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {  
+const Sidebar: React.FC<SidebarProps> = ({ className = '', onCitySelectedForMap, onClose }) => {  
   const generalStats: StatData[] = [
     { label: 'Population', value: '8,143' },
     { label: 'Area', value: '10', unit: 'km²' },
@@ -90,6 +92,12 @@ const handleCitySelect = async (city: string) => {
   } catch (err) {
     console.error(err);
   }
+
+  // Notify parent (e.g. MapVisualization) so it can focus the map on this city
+  if (onCitySelectedForMap) {
+    onCitySelectedForMap(city);
+  }
+
   setShowCities(false)
 };
 
@@ -150,11 +158,24 @@ const getCityStats = async (city: string) => {
           Evaluation: <span className="text-[#20BBD6]">{selectedCity || "Select City"}</span>
         </h2>
 
-        <button className="text-gray-400 hover:text-white" onClick={handleDropdownClick}>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="text-gray-400 hover:text-white" onClick={handleDropdownClick}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {onClose && (
+            <button 
+              className="text-gray-400 hover:text-white transition-colors" 
+              onClick={onClose}
+              aria-label="Close sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
 
         {showCities && (
           <div className={`

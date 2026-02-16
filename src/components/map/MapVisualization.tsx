@@ -1,9 +1,12 @@
-import { addDataToMap } from '@kepler.gl/actions';
+import { addDataToMap, updateMap } from '@kepler.gl/actions';
 import KeplerGl from '@kepler.gl/components';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import Chatbot from '../chatbot/Chatbot';
 import Sidebar from '../sidebar/Sidebar';
+import { getCityLocation } from '../apis/baseUrl';
+import { useIsMobile } from '../../hooks/use-mobile';
 
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
@@ -34,8 +37,24 @@ interface MapVisualizationProps {
 const MapVisualization: React.FC<MapVisualizationProps> = ({ className = '' }) => {
   const dispatch = useDispatch();
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedCityLocation, setSelectedCityLocation] = useState<{
+    lat: number;
+    lon: number;
+    city: string;
+  } | null>(null);
+
+  // Set initial sidebar state based on screen size
+  useEffect(() => {
+    setIsSidebarOpen(!isMobile);
+  }, [isMobile]);
+
+  // Prevent Kepler modal from auto-opening
+  // The uiState in the Redux store should prevent the modal from opening initially
+  // CSS fallback is also applied below to ensure modal stays hidden
 
   // Handle container resizing
   useEffect(() => {
@@ -166,6 +185,98 @@ const MapVisualization: React.FC<MapVisualizationProps> = ({ className = '' }) =
       });
   }, [dispatch, size.width, size.height]);
 
+  // When a city is selected in the Sidebar, fetch its coordinates and focus the map
+  const handleCitySelectedForMap = async (city: string) => {
+    try {
+      const location = await getCityLocation(city);
+
+      // Expecting shape: { city, lat, lon }
+      const { lat, lon } = location.data || location;
+
+      if (
+        typeof lat !== 'number' ||
+        typeof lon !== 'number'
+      ) {
+        console.error('Invalid city location data:', location);
+        return;
+      }
+
+      setSelectedCityLocation({ lat, lon, city });
+
+      // Center and zoom the map on the selected city
+      dispatch(
+        updateMap({
+          latitude: lat,
+          longitude: lon,
+          zoom: 14, // more focused city-level zoom
+          transitionDuration: 500
+        })
+      );
+
+      // Add or update a simple point layer to highlight the selected city
+      const cityDataset = {
+        info: {
+          label: 'Selected City',
+          id: 'selected_city'
+        },
+        data: {
+          fields: [
+            { name: 'city', format: '', type: 'string' },
+            { name: 'lat', format: '', type: 'real' },
+            { name: 'lon', format: '', type: 'real' }
+          ],
+          rows: [[city, lat, lon]]
+        }
+      };
+
+      dispatch(
+        addDataToMap({
+          datasets: [cityDataset],
+          options: {
+            centerMap: false,
+            readOnly: false
+          },
+          config: {
+            version: 'v1',
+            config: {
+              visState: {
+                filters: [],
+                layers: [
+                  {
+                    id: 'selected_city_layer',
+                    type: 'point',
+                    config: {
+                      dataId: 'selected_city',
+                      label: 'Selected City',
+                      color: [32, 187, 214],
+                      columns: {
+                        lat: 'lat',
+                        lng: 'lon',
+                        altitude: ''
+                      },
+                      isVisible: true,
+                      visConfig: {
+                        radius: 15,
+                        fixedRadius: true,
+                        opacity: 0.9,
+                        outline: true,
+                        filled: true
+                      }
+                    }
+                  }
+                ]
+              },
+              mapState: {},
+              mapStyle: {}
+            }
+          }
+        })
+      );
+    } catch (error) {
+      console.error('Failed to focus map on city:', error);
+    }
+  };
+
   return (
     <div ref={containerRef} className={`relative w-screen h-screen overflow-hidden ${className}`}>
       {/* Only render KeplerGl when we have valid dimensions */}
@@ -235,13 +346,45 @@ const MapVisualization: React.FC<MapVisualizationProps> = ({ className = '' }) =
           </div>
         ))}
       </div>
- <div className="absolute top-0 right-[23px] h-full w-80 z-[9999] pointer-events-auto">
-    <Sidebar />
-  </div>
+      {/* Sidebar with toggle functionality */}
+      <div 
+        className={`absolute top-0 right-[23px] h-full w-80 z-[9999] pointer-events-auto transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        } ${isMobile && isSidebarOpen ? 'shadow-2xl' : ''}`}
+      >
+        <Sidebar onCitySelectedForMap={handleCitySelectedForMap} onClose={() => setIsSidebarOpen(false)} />
+      </div>
 
-<div className="fixed bottom-4 right-[27rem] z-[10000] pointer-events-auto">
-    <Chatbot />
-  </div>
+      {/* Mobile backdrop when sidebar is open */}
+      {isMobile && isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[9998]"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-label="Close sidebar backdrop"
+        />
+      )}
+
+      {/* Sidebar Toggle Button */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className={`absolute top-4 z-[10000] bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-md transition-all duration-300 ${
+          isSidebarOpen ? 'right-[23rem]' : 'right-[23px]'
+        }`}
+        aria-label={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+      >
+        {isSidebarOpen ? (
+          <ChevronRight className="w-5 h-5" />
+        ) : (
+          <ChevronLeft className="w-5 h-5" />
+        )}
+      </button>
+
+      {/* Modal visibility is controlled by uiState in store.ts */}
+      {/* The uiState.currentModal: null should prevent modal from auto-opening */}
+
+      <div className="fixed bottom-4 right-[27rem] z-[10000] pointer-events-auto">
+        <Chatbot />
+      </div>
     </div>
   );
 };
