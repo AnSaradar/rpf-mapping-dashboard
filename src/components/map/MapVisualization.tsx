@@ -1,5 +1,6 @@
 import { addDataToMap, updateMap } from '@kepler.gl/actions';
 import KeplerGl from '@kepler.gl/components';
+import { processGeojson } from '@kepler.gl/processors';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -9,7 +10,19 @@ import { getCityLocation } from '../apis/baseUrl';
 import { useIsMobile } from '../../hooks/use-mobile';
 
 
-const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string;
+
+// Mapping city names to their GeoJSON file paths
+// Handles potential name variations from API vs file names
+const CITY_GEOJSON_MAP: Record<string, string> = {
+  'Afef': '/data/Afef.geojson',
+  'Old Damascus': '/data/Old Damascus.geojson',
+  'Damascus': '/data/Old Damascus.geojson', // Handle API returning "Damascus"
+  'Joubar': '/data/Joubar.geojson',
+  'Jaramana': '/data/Jaramana.geojson',
+  'Darayaa': '/data/Darayaa.geojson',
+};
+
 const SYRIA_CONFIG = {
   version: 'v1',
   config: {
@@ -185,6 +198,105 @@ const MapVisualization: React.FC<MapVisualizationProps> = ({ className = '' }) =
       });
   }, [dispatch, size.width, size.height]);
 
+  // Load and display GeoJSON polygon data for a selected city
+  const loadCityGeoJSON = async (city: string) => {
+    try {
+      // Get the GeoJSON file path for this city
+      const geojsonPath = CITY_GEOJSON_MAP[city];
+      
+      if (!geojsonPath) {
+        console.warn(`No GeoJSON file found for city: ${city}. Available cities: ${Object.keys(CITY_GEOJSON_MAP).join(', ')}`);
+        return;
+      }
+
+      // Fetch the GeoJSON file
+      const response = await fetch(geojsonPath);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch GeoJSON: ${response.status} ${response.statusText}`);
+      }
+
+      const geojsonData = await response.json();
+
+      // Validate GeoJSON structure
+      if (!geojsonData || geojsonData.type !== 'FeatureCollection' || !Array.isArray(geojsonData.features)) {
+        throw new Error('Invalid GeoJSON format: expected FeatureCollection');
+      }
+
+      // Process GeoJSON using Kepler's processor
+      const processedData = processGeojson(geojsonData);
+
+      // Handle null result from processor
+      if (!processedData) {
+        throw new Error('Failed to process GeoJSON data');
+      }
+
+      // Create a sanitized ID for the dataset
+      const cityId = city.replace(/\s+/g, '_').toLowerCase();
+      const datasetId = `city_geojson_${cityId}`;
+      const layerId = `geojson_${datasetId}`;
+
+      // Resolve the Name field - processGeojson preserves GeoJSON property names
+      const nameField = processedData.fields?.find(
+        (f: { name: string }) => f.name === 'Name' || f.name === 'name'
+      );
+      const colorFieldName = nameField?.name ?? 'Name';
+
+      // Explicit geojson layer config: color polygons by NAME (categorical)
+      const geojsonLayerConfig = {
+        id: layerId,
+        type: 'geojson' as const,
+        config: {
+          dataId: datasetId,
+          label: `${city} Buildings`,
+          columns: { geojson: '_geojson' },
+          isVisible: true,
+          colorField: colorFieldName
+            ? { name: colorFieldName, type: 'string' as const }
+            : undefined,
+          colorScale: 'ordinal' as const,
+          visConfig: {
+            filled: true,
+            stroked: true,
+            opacity: 0.8,
+            strokeWidth: 1
+          }
+        }
+      };
+
+      dispatch(
+        addDataToMap({
+          datasets: [
+            {
+              info: {
+                label: `${city} Buildings`,
+                id: datasetId
+              },
+              data: processedData
+            }
+          ],
+          options: {
+            centerMap: true,
+            readOnly: false,
+            keepExistingConfig: true
+          },
+          config: {
+            version: 'v1',
+            config: {
+              visState: {
+                layers: [geojsonLayerConfig]
+              }
+            }
+          }
+        })
+      );
+
+      console.log(`Successfully loaded GeoJSON for ${city} (${processedData.rows.length} features)`);
+    } catch (error) {
+      console.error(`Error loading GeoJSON for ${city}:`, error);
+    }
+  };
+
   // When a city is selected in the Sidebar, fetch its coordinates and focus the map
   const handleCitySelectedForMap = async (city: string) => {
     try {
@@ -213,65 +325,8 @@ const MapVisualization: React.FC<MapVisualizationProps> = ({ className = '' }) =
         })
       );
 
-      // Add or update a simple point layer to highlight the selected city
-      const cityDataset = {
-        info: {
-          label: 'Selected City',
-          id: 'selected_city'
-        },
-        data: {
-          fields: [
-            { name: 'city', format: '', type: 'string' },
-            { name: 'lat', format: '', type: 'real' },
-            { name: 'lon', format: '', type: 'real' }
-          ],
-          rows: [[city, lat, lon]]
-        }
-      };
-
-      dispatch(
-        addDataToMap({
-          datasets: [cityDataset],
-          options: {
-            centerMap: false,
-            readOnly: false
-          },
-          config: {
-            version: 'v1',
-            config: {
-              visState: {
-                filters: [],
-                layers: [
-                  {
-                    id: 'selected_city_layer',
-                    type: 'point',
-                    config: {
-                      dataId: 'selected_city',
-                      label: 'Selected City',
-                      color: [32, 187, 214],
-                      columns: {
-                        lat: 'lat',
-                        lng: 'lon',
-                        altitude: ''
-                      },
-                      isVisible: true,
-                      visConfig: {
-                        radius: 15,
-                        fixedRadius: true,
-                        opacity: 0.9,
-                        outline: true,
-                        filled: true
-                      }
-                    }
-                  }
-                ]
-              },
-              mapState: {},
-              mapStyle: {}
-            }
-          }
-        })
-      );
+      // Load and display the GeoJSON polygons for this city
+      await loadCityGeoJSON(city);
     } catch (error) {
       console.error('Failed to focus map on city:', error);
     }
