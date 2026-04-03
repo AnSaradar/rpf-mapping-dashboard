@@ -1,1 +1,1 @@
-{"root":["./src/types/kepler-gl.d.ts","./src/types/react-palm-tasks.d.ts"],"version":"5.6.3"}
+{"root":["./src/vite-env.d.ts","./src/types/kepler-gl.d.ts","./src/types/react-palm-tasks.d.ts"],"version":"5.6.3"}
