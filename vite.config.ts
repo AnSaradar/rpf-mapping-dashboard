@@ -3,8 +3,9 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
 export default defineConfig({
+  envDir: path.resolve(__dirname, "src"),
   plugins: [react()],
-   define: {
+  define: {
     'process.env': process.env
   },
   resolve: {

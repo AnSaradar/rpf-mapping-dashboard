@@ -1,7 +1,15 @@
+/// <reference types="vite/client" />
 import axios from "axios";
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
+if (!baseURL) {
+  throw new Error(
+    "Missing VITE_API_BASE_URL. Add it to your environment (e.g. .env in the Vite env directory).",
+  );
+}
+
 const api = axios.create({
-  baseURL: "https://rpf-ai-assistant-506261777635.herokuapp.com",
+  baseURL,
 });
 
 // Helper to always read the latest token from localStorage
