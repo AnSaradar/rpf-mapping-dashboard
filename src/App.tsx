@@ -187,6 +187,7 @@
 import { Provider } from 'react-redux';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { LoginForm } from './components/Auth/Login';
+import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RegisterForm } from './components/Auth/Register';
 import MapVisualization from './components/map/MapVisualization';
 import { store } from './store';
@@ -202,7 +203,14 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<LoginForm />} />
             <Route path="/register" element={<RegisterForm />} />
-            <Route path="/map" element={<MapVisualization />} />
+            <Route
+              path="/map"
+              element={
+                <ProtectedRoute>
+                  <MapVisualization />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </Router>
       </Provider>

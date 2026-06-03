@@ -6,6 +6,7 @@ import { Button } from "../ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
 import { AuthLayout } from "./AuthLayout"
+import { AuthLoadingBanner } from "./AuthLoadingBanner"
 
 
 type LoginFormValues = {
@@ -21,6 +22,8 @@ export const LoginForm = () => {
     const form = useForm<LoginFormValues>({
         defaultValues: { email: "", password: "" }
     })
+
+    const { isSubmitting } = form.formState
 
     const onSubmit = async (values: LoginFormValues) => {
         const { success, data, error } = await postData("/auth/login", values);
@@ -45,6 +48,8 @@ export const LoginForm = () => {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 text-white">
                     <h2 className="text-2xl font-bold text-[#1FBAD6] text-center">Welcome Back</h2>
                     <p className="text-center text-gray-400 text-sm">Login to your account to continue</p>
+
+                    <AuthLoadingBanner loading={isSubmitting} message="Signing you in…" />
 
                     <FormField
                         name="email"
@@ -79,7 +84,11 @@ export const LoginForm = () => {
                         <p className="text-red-500 text-sm text-center">{apiError}</p>
                     )}
 
-                    <Button type="submit" className="w-full bg-[#1FBAD6] hover:bg-[#17a0c0] text-black font-bold py-2 rounded-xl">
+                    <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full bg-[#1FBAD6] hover:bg-[#17a0c0] text-black font-bold py-2 rounded-xl disabled:opacity-60"
+                    >
                         Login
                     </Button>
 

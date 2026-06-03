@@ -6,6 +6,7 @@ import { Button } from "../ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { Input } from "../ui/input"
 import { AuthLayout } from "./AuthLayout"
+import { AuthLoadingBanner } from "./AuthLoadingBanner"
 
 type RegisterFormValues = {
     full_name: string
@@ -29,6 +30,8 @@ export const RegisterForm = () => {
         }
     })
 
+    const { isSubmitting } = form.formState
+
     const onSubmit = async (values: RegisterFormValues) => {
         const { success, data, error } = await postData("/auth/register", values);
 
@@ -46,6 +49,8 @@ export const RegisterForm = () => {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 text-white w-full max-w-md p-8 rounded-3xl" style={{ backgroundColor: "#242730" }}>
                     <h2 className="text-2xl font-bold text-[#1FBAD6] text-center">Create Account</h2>
                     <p className="text-center text-gray-400 text-sm">Sign up to get started</p>
+
+                    <AuthLoadingBanner loading={isSubmitting} message="Creating your account…" />
 
                     {/* Full Name */}
                     <FormField
@@ -133,7 +138,8 @@ export const RegisterForm = () => {
                     )}
                     <Button
                         type="submit"
-                        className="w-full bg-[#1FBAD6] hover:bg-[#17a0c0] text-black font-bold py-2 rounded-xl"
+                        disabled={isSubmitting}
+                        className="w-full bg-[#1FBAD6] hover:bg-[#17a0c0] text-black font-bold py-2 rounded-xl disabled:opacity-60"
                     >
                         Register
                     </Button>

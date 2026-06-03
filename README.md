@@ -1,4 +1,4 @@
-# Kepler.gl React Frontend
+# Reparameterize Evaluation Dashboard
 
 This project is a React frontend implementation based on the Kepler.gl interface mockups. It includes a responsive UI with map visualization, data filtering, and analysis components.
 
