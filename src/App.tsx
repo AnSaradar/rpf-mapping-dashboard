@@ -185,11 +185,12 @@
 // export default App;
 // src/App.tsx
 import { Provider } from 'react-redux';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { LoginForm } from './components/Auth/Login';
 import { ProtectedRoute } from './components/Auth/ProtectedRoute';
 import { RegisterForm } from './components/Auth/Register';
 import MapVisualization from './components/map/MapVisualization';
+import { AUTH_DISABLED } from './config/env';
 import { store } from './store';
 
 
@@ -201,8 +202,14 @@ const App: React.FC = () => {
       <Provider store={store}>
         <Router>
           <Routes>
-            <Route path="/" element={<LoginForm />} />
-            <Route path="/register" element={<RegisterForm />} />
+            <Route
+              path="/"
+              element={AUTH_DISABLED ? <Navigate to="/map" replace /> : <LoginForm />}
+            />
+            <Route
+              path="/register"
+              element={AUTH_DISABLED ? <Navigate to="/map" replace /> : <RegisterForm />}
+            />
             <Route
               path="/map"
               element={

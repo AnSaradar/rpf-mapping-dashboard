@@ -2,17 +2,11 @@
 import { createStore, combineReducers, applyMiddleware, compose } from 'redux';
 import keplerGlReducer from '@kepler.gl/reducers';
 import { taskMiddleware } from 'react-palm/tasks';
+import { SYRIA_MAP_STATE } from './constants/syriaMapConfig';
 
 const rootReducer = combineReducers({
   keplerGl: keplerGlReducer.initialState({
-    mapState: {
-      latitude: 34.8021,
-      longitude: 38.9968,
-      zoom: 6,
-      pitch: 30,
-      bearing: 0,
-      dragRotate: true
-    },
+    mapState: SYRIA_MAP_STATE,
     uiState: {
       // Prevent the "Add Data To Map" modal from auto-opening
       activeSidePanel: null,

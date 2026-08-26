@@ -10,6 +10,24 @@ import {
 
 import { aspectColors, normalizeAspect } from "./aspectColors";
 
+function AspectTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: { aspect: string } }[];
+}) {
+  if (!active || !payload?.length) return null;
+
+  const aspect = payload[0].payload.aspect;
+
+  return (
+    <div className="rounded border border-gray-600 bg-[#29323C] px-2 py-1 text-xs text-white shadow-md">
+      {aspect}
+    </div>
+  );
+}
+
 export default function CityBarChart({
   scores,
   activeAspect
@@ -42,7 +60,10 @@ export default function CityBarChart({
             interval={0}
           />
           <YAxis tick={{ fill: "white", fontSize: 11 }} />
-          <Tooltip />
+          <Tooltip
+            content={<AspectTooltip />}
+            cursor={{ fill: "rgba(255, 255, 255, 0.08)" }}
+          />
 
           <Bar dataKey="final_score" barSize={30}>
             {filteredData.map((entry, idx) => (

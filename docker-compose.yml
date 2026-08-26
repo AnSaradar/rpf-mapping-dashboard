@@ -1,0 +1,77 @@
+# Build and run the production image locally (image size + Kepler smoke checks).
+#
+# Quick start:
+#   cp .env.example .env   # VITE_MAPBOX_TOKEN + VITE_API_BASE_URL
+#   docker compose build dashboard
+#   docker compose up -d dashboard
+#   docker image ls rpf-mapping-dashboard:local
+#
+# Kepler / static asset smoke test (after dashboard is healthy):
+#   docker compose --profile test run --rm smoke
+#
+# Tear down:
+#   docker compose down
+
+name: rpf-mapping-dashboard
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_OPENAI_API_KEY: ${VITE_OPENAI_API_KEY:-}
+        VITE_OPENAI_API_URL: ${VITE_OPENAI_API_URL:-https://openrouter.ai/api/v1}
+        VITE_OPENAI_MODEL: ${VITE_OPENAI_MODEL:-openai/gpt-4o-mini}
+    image: rpf-mapping-dashboard:local
+    container_name: rpf-dashboard
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # Verifies SPA, hashed bundles, WASM (Kepler parquet), and GeoJSON data paths.
+  smoke:
+    profiles: [test]
+    image: curlimages/curl:8.12.1
+    depends_on:
+      dashboard:
+        condition: service_healthy
+    environment:
+      BASE_URL: http://dashboard
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        set -e
+        echo "== SPA index =="
+        curl -fsS "$$BASE_URL/" | grep -q 'id="root"'
+        html=$$(curl -fsS "$$BASE_URL/")
+        echo "== Bundled assets from index.html =="
+        for ext in js css wasm; do
+          path=$$(printf '%s' "$$html" | tr '"' '\n' | grep -m1 "/assets/.*\\.$$ext" || true)
+          if [ -z "$$path" ]; then
+            echo "WARN: no .$$ext asset linked in index.html"
+            continue
+          fi
+          echo "GET $$path"
+          curl -fsSI "$$BASE_URL$$path" | head -1
+        done
+        echo "== Kepler GeoJSON sample =="
+        curl -fsSI "$$BASE_URL/data/Afef.geojson" | head -1
+        echo "== WASM MIME (Kepler parquet loader) =="
+        wasm=$$(printf '%s' "$$html" | tr '"' '\n' | grep -m1 '/assets/.*\.wasm' || true)
+        if [ -n "$$wasm" ]; then
+          mime=$$(curl -fsSI "$$BASE_URL$$wasm" | grep -i '^content-type:' | tr -d '\r')
+          echo "$$mime"
+          echo "$$mime" | grep -qi 'application/wasm' || { echo "FAIL: expected application/wasm"; exit 1; }
+        else
+          echo "WARN: no .wasm reference in index.html"
+        fi
+        echo "OK: smoke checks passed"

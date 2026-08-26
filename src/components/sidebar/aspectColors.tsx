@@ -8,14 +8,17 @@ export const aspectColors: { [key: string]: string } = {
   "Ecological Factor": "#3ba140",
   "Public Health": "#2e7a4a",
   "Resources Management": "#4079a1",
-  "Technology": "#204876"
+  "Technology": "#204876",
+  "Data Collection": "#6b5b95",
 };
 export const aspectNormalize: Record<string, string> = {
   "Building Code & Policy": "Building Code",
   "Resource Management": "Resources Management",
   "Technology & Infrastructure": "Technology",
-  "Data Collection": "Data Collection"
+  "Technology & Digital Infrastructure": "Technology",
+  "Economy": "Economic Factor",
+  "Social": "Social Factor",
+  "Culture": "Culture & Heritage",
 };
-
 export const normalizeAspect = (aspect: string) =>
   aspectNormalize[aspect] || aspect;
